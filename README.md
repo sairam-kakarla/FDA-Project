@@ -1,2 +1,8 @@
-# FDA-Project
-Repo to store and track work done for Data Analytics Course Project
+# Analysis and Prediciton of Employee Attrition using R
+<details>
+  <summary>Libraries</summary>
+  
+  - dplyr(data manipulation)
+</details>
+
+
