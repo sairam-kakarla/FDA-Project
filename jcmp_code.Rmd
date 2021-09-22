@@ -1,0 +1,17 @@
+---
+title: "Employee Attrition Analysis and Prediction"
+output: html_notebook
+author: "Lakshmi Sairam Kakarla"
+---
+
+Setting the work environment, Loading the dataset
+```{r}
+emp_details<-read.csv("Employee-Attrition.csv")
+head(emp_details)
+```
+## Exploring the Data
+understanding the dataset
+```{r}
+dim(emp_details)
+```
+
