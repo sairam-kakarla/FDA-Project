@@ -4,14 +4,133 @@ output: html_notebook
 author: "Lakshmi Sairam Kakarla"
 ---
 
+## Inital setup and Loading Dataset
 Setting the work environment, Loading the dataset
 ```{r}
 emp_details<-read.csv("Employee-Attrition.csv")
 head(emp_details)
 ```
 ## Exploring the Data
-understanding the dataset
+Finding the number of records in the dataset and the features present.
 ```{r}
-dim(emp_details)
+nrow(emp_details)
+ncol(emp_details)
+```
+there are a total of 1470 rows or data points in the dataset. There are total of 35 columns present in the dataset.
+
+Checking for missing values in the data
+is.na.data.frame returns a matix of Boolean representing the state of missing values column and row wise.
+```{r}
+sum(is.na.data.frame(emp_details))
+```
+There are no missing values. The dataset was cleaned in prior.
+
+Understanding the various features, datatypes,etc
+```{r}
+str(emp_details)
+```
+Detail statistical summary of each variable
+```{r}
+summary(emp_details)
+```
+The number of attritions are 237 out of 1233 so the majority class prediction would give us an accuracy of
+```{r}
+1233/1470
+```
+The majority class prediction is to predict the majority class irrespective of the data. In this data set, the bottom-line for any
+model we design and implement must be a accuracy of 84%. If models under performs this threshold, there is no reason in implementing the 
+computation intensive models.
+
+## Exploratory Data Analysis
+loading "dplyr" data manipulation library
+```{r}
+library(dplyr)
+is_relatable<-function(c){
+  return (is.numeric(c) && sd(c)!=0)
+}
 ```
 
+Applying the above function to draw the correlation matrix
+```{r}
+heatmap(cor(select_if(emp_details,is_relatable)),Rowv=NA,Colv = NA)
+```
+As a rule of thumb correlation above 0.9 are interesting and are supportive enough to derive conclusions.
+The major correlation observed(0.7) was between percentage salary hike and performance rating. This is natural can 
+be explained by the fact that the high performing individuals are paid more.
+
+---
+
+Eliminating the irrelavant information
+```{r}
+for (i in names(emp_details)) {
+  if(sd(as.numeric(emp_details[[i]]))==0){
+    print(i)
+  }
+}
+```
+The above three columns show no variance. They dont contribute to either analytics or predictions for the choosen models.
+```{r}
+emp_details<-select(emp_details,-c("EmployeeCount","Over18","StandardHours"))
+names(emp_details)
+```
+
+Dealing with employee attrition column
+```{r}
+str(emp_details$Attrition)
+```
+Here the factors are stored as 2,1 for No,Yes respectively.
+COnverting them to a numeric of (1,0) for Yes, No respectively
+```{r}
+emp_details$Attrition<-as.numeric((as.numeric(emp_details$Attrition)-1))
+unique(emp_details$Attrition)
+```
+Finding which overall attrition percentage of the organization
+```{r}
+sum(emp_details$Attrition)/length(emp_details$Attrition)
+```
+16% is the employee attrition rate in the organization.
+
+Finding the employee attrition department wise
+```{r}
+dept_attrition<-aggregate(emp_details$Attrition,by=list(emp_details$Department),FUN=sum)
+dept_total<-aggregate(emp_details$Attrition,by=list(emp_details$Department),FUN=length)
+barplot(as.numeric(unlist(dept_attrition[2])),names.arg=as.character(unlist(dept_attrition[1])))
+
+```
+The employee attrition rates department wise
+```{r}
+barplot(as.numeric(unlist(dept_attrition[2]/dept_total[2])),names.arg=as.character(unlist(dept_attrition[1])))
+```
+
+The sales department is having the highest employee attrition rate, followed by the Human resources.
+The least attrition rate is in the Research and Development.
+
+Exploring the employee attrition based on the marital status of employee
+```{r}
+emp_mstatus<-aggregate(emp_details$Attrition,by=list(Status=emp_details$MaritalStatus),FUN=sum)
+pie(as.numeric(unlist(emp_mstatus[2])),labels=as.character(unlist(emp_mstatus[2])),col=rainbow(3),main = "Attrition based on marital status")
+legend("topright",as.character(unlist(emp_mstatus[1])),fill=rainbow(3))
+```
+Attrition rates based on the martial status of employee
+```{r}
+
+emp_m<-aggregate(emp_details$Attrition)
+```
+Effect of Distance from Home on Employee Attrition
+```{r}
+emp_homedist<-aggregate(emp_details$Attrition,by=list(Distance=emp_details$DistanceFromHome),FUN=sum)
+emp_homedistT<-aggregate(emp_details$Attrition,by=list(Distance=emp_details$DistanceFromHome),FUN=length)
+dist_value<-as.numeric(unlist(emp_homedist[2]))/as.numeric(unlist(emp_homedistT[2]))
+plot(x=as.numeric(unlist(emp_homedistT[1])),y=dist_value,type="b",xlab="Distance from Home",ylab="Attrition %")
+```
+A non-uniform increase in the attrition % can be observed with the increasing distance from home of employee. Its a natural event. But the relative impact of distance from home factor on employee attrition is yet to be explored.
+
+Effect of Work Life Balance on Employee Attrition
+```{r}
+emp_wl<-aggregate(emp_details$Attrition,by=list(WLB=emp_details$WorkLifeBalance),FUN=sum)
+emp_wlT<-aggregate(emp_details$Attrition,by=list(WLB=emp_details$WorkLifeBalance),FUN=length)
+barplot(as.numeric(unlist(emp_wl[2])/unlist(emp_wlT[2])),names.arg = as.character(unlist(emp_wl[1])),xlab="Work Life Balance",ylab="Attrition %")
+
+```
+From the work life balance distribution, it is understood that people with very low work life balance are likely to leave the organization than people with moderate or good work life balance.
+30% of employees with 1 work life balance are estimated to leave the company.
