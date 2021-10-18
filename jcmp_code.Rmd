@@ -10,7 +10,7 @@ Setting the work environment, Loading the dataset
 emp_details<-read.csv("Employee-Attrition.csv")
 head(emp_details)
 ```
-## Exploring the Data
+## Descriptive Statistics
 Finding the number of records in the dataset and the features present.
 ```{r}
 nrow(emp_details)
@@ -60,7 +60,7 @@ be explained by the fact that the high performing individuals are paid more.
 
 ---
 
-Eliminating the irrelavant information
+Eliminating the irrelevant information
 ```{r}
 for (i in names(emp_details)) {
   if(sd(as.numeric(emp_details[[i]]))==0){
@@ -68,7 +68,7 @@ for (i in names(emp_details)) {
   }
 }
 ```
-The above three columns show no variance. They dont contribute to either analytics or predictions for the choosen models.
+The above three columns show no variance. They donot contribute to either analytics or predictions for the choosen models.
 ```{r}
 emp_details<-select(emp_details,-c("EmployeeCount","Over18","StandardHours"))
 names(emp_details)
@@ -79,7 +79,7 @@ Dealing with employee attrition column
 str(emp_details$Attrition)
 ```
 Here the factors are stored as 2,1 for No,Yes respectively.
-COnverting them to a numeric of (1,0) for Yes, No respectively
+Converting them to a numeric of (1,0) for Yes, No respectively
 ```{r}
 emp_details$Attrition<-as.numeric((as.numeric(emp_details$Attrition)-1))
 unique(emp_details$Attrition)
@@ -90,16 +90,17 @@ sum(emp_details$Attrition)/length(emp_details$Attrition)
 ```
 16% is the employee attrition rate in the organization.
 
+# Data Visualization
 Finding the employee attrition department wise
 ```{r}
 dept_attrition<-aggregate(emp_details$Attrition,by=list(emp_details$Department),FUN=sum)
 dept_total<-aggregate(emp_details$Attrition,by=list(emp_details$Department),FUN=length)
-barplot(as.numeric(unlist(dept_attrition[2])),names.arg=as.character(unlist(dept_attrition[1])))
+barplot(as.numeric(unlist(dept_attrition[2])),names.arg=as.character(unlist(dept_attrition[1])),ylab="Attrition Count",xlab="Department")
 
 ```
 The employee attrition rates department wise
 ```{r}
-barplot(as.numeric(unlist(dept_attrition[2]/dept_total[2])),names.arg=as.character(unlist(dept_attrition[1])))
+barplot(as.numeric(unlist(dept_attrition[2]/dept_total[2])),names.arg=as.character(unlist(dept_attrition[1])),xlab="Department",ylab="Attrition Rate",col=rainbow(3))
 ```
 
 The sales department is having the highest employee attrition rate, followed by the Human resources.
@@ -108,14 +109,14 @@ The least attrition rate is in the Research and Development.
 Exploring the employee attrition based on the marital status of employee
 ```{r}
 emp_mstatus<-aggregate(emp_details$Attrition,by=list(Status=emp_details$MaritalStatus),FUN=sum)
-pie(as.numeric(unlist(emp_mstatus[2])),labels=as.character(unlist(emp_mstatus[2])),col=rainbow(3),main = "Attrition based on marital status")
+emp_mTstatus<-aggregate(emp_details$Attrition,by=list(Status=emp_details$MaritalStatus),FUN=length)
+pie(as.numeric(unlist(emp_mstatus[2])),labels=as.character(unlist(emp_mstatus[2])),col=rainbow(3),main = "Attrition Rate based on marital status")
 legend("topright",as.character(unlist(emp_mstatus[1])),fill=rainbow(3))
 ```
-Attrition rates based on the martial status of employee
 ```{r}
-
-emp_m<-aggregate(emp_details$Attrition)
+barplot(as.numeric(unlist(emp_mstatus[2]))/as.numeric((unlist(emp_mTstatus[2]))),names.arg=as.character(unlist(emp_mstatus[1])),col=rainbow(3),xlab="Marital Status",ylab="Attrition Rate")
 ```
+
 Effect of Distance from Home on Employee Attrition
 ```{r}
 emp_homedist<-aggregate(emp_details$Attrition,by=list(Distance=emp_details$DistanceFromHome),FUN=sum)
@@ -134,3 +135,106 @@ barplot(as.numeric(unlist(emp_wl[2])/unlist(emp_wlT[2])),names.arg = as.characte
 ```
 From the work life balance distribution, it is understood that people with very low work life balance are likely to leave the organization than people with moderate or good work life balance.
 30% of employees with 1 work life balance are estimated to leave the company.
+
+```{r}
+emp_ji<-aggregate(emp_details$Attrition,by=list(JI=emp_details$JobInvolvement),FUN=sum)
+emp_jiT<-aggregate(emp_details$Attrition,by=list(JL=emp_details$JobInvolvement),FUN=length)
+barplot(as.numeric(unlist(emp_ji[2])/unlist(emp_jiT[2])),names.arg = as.character(unlist(emp_ji[1])),xlab="Job Involvement",ylab="Attrition Rate")
+```
+```{r}
+emp_bt<-aggregate(emp_details$Attrition,by=list(BT=emp_details$BusinessTravel),FUN=sum)
+emp_btT<-aggregate(emp_details$Attrition,by=list(JL=emp_details$BusinessTravel),FUN=length)
+barplot(as.numeric(unlist(emp_bt[2])/unlist(emp_btT[2])),names.arg = as.character(unlist(emp_bt[1])),xlab="Business Travel",ylab="Attrition Rate")
+```
+JobRole wise Attrition
+```{r}
+s<-table(select(emp_details,Attrition,JobRole))
+plt<-barplot(s,col=c("#33FF00","#CCFF00"),legend.text = c("No","Yes"),xaxt="n",space=1)
+text(plt, par("usr")[3], labels = colnames(s), srt = 45, adj = c(1.1,1.1), xpd = TRUE, cex=0.6)
+```
+ 
+### Box-Wisker Plots of numerical data
+For Age
+```{r}
+boxplot(emp_details$Age,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+For Distance From Home
+```{r}
+boxplot(emp_details$DistanceFromHome,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For HourlyRate
+```{r}
+boxplot(emp_details$HourlyRate,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For Monthly Income
+```{r}
+boxplot(emp_details$MonthlyIncome,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+Monthly Income has lot a of outliers, need to either apply transformation or eliminate then.
+Applying Logrithmic Transformation on Monthly Income
+```{r}
+hist(emp_details$MonthlyIncome,xlab="Monthly Income")
+```
+Histogram after logithmic transformation
+```{r}
+hist(log(emp_details$MonthlyIncome),xlab="Monthly Income")
+```
+```{r}
+emp_details$MonthlyIncome<-log(emp_details$MonthlyIncome)
+boxplot(emp_details$MonthlyIncome,col=c("red"),border=c("blue"),range=1.5)
+```
+
+
+For Monthly Rate
+```{r}
+boxplot(emp_details$MonthlyRate,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For Number of Companies Worked
+```{r}
+boxplot(emp_details$NumCompaniesWorked,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+Their is only one oulier
+```{r}
+hist(emp_details$NumCompaniesWorked,xlab="Number of Companies Worked")
+```
+
+```{r}
+boxplot.stats(emp_details$NumCompaniesWorked)
+```
+```{r}
+length(emp_details$NumCompaniesWorked[emp_details$NumCompaniesWorked==9])
+```
+There are total of 52 employess with Number of Companies Worked as 9.
+
+For Percentage Salary Hike
+```{r}
+boxplot(emp_details$PercentSalaryHike,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For Total Working Years
+```{r}
+boxplot(emp_details$TotalWorkingYears,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For Years At Company
+```{r}
+boxplot(emp_details$YearsAtCompany,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For Years in current role
+```{r}
+boxplot(emp_details$YearsInCurrentRole,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For Years Since Last Promotion
+```{r}
+boxplot(emp_details$YearsSinceLastPromotion,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For Years With Current Manager
+```{r}
+boxplot(emp_details$YearsWithCurrManager,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
