@@ -1,0 +1,435 @@
+---
+title: "Analysis and Prediction of Employee Attrition."
+output:
+  html_document:
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+  pdf_document: default
+  html_notebook: default
+---
+> 19BCE1052  
+> Lakshmi Sairam Kakarla
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(moments)
+```
+
+## Loading the Dataset
+The data set is sourced from [Kaggle](https://www.kaggle.com/pavansubhasht/ibm-hr-analytics-attrition-dataset).
+Dataset Description:
+Number of Rows: 1470
+Number of Columns: 35
+```{r}
+emp_df<-read.csv("Employee-Attrition.csv")
+head(emp_df,2)
+```
+Store type of each column in the dataframe
+```{r}
+str(emp_df)
+```
+Lot of features such as Environmental Satisfaction,Performance Rating is stored as int, need to convert then as factors.
+```{r}
+summary(emp_df)
+```
+Features like employee count, Over18 and Standard Hours show no deviation. Using such features from modelling is useless.
+```{r}
+for(i in names(emp_df))
+  {
+  if(sd(as.numeric(emp_df[[i]]))==0){
+    print(i)
+  }
+}
+```
+These three factor can be droped.
+```{r}
+emp_df<-select(emp_df,!c("EmployeeCount","Over18","StandardHours","EmployeeNumber"))
+str(emp_df)
+```
+Converting the employee attrition from a factor to a interger(0,1) for (No,Yes) respectively
+```{r}
+print(head(emp_df$Attrition,5))
+emp_df$Attrition<-as.numeric(emp_df$Attrition)-1
+print(head(emp_df$Attrition,5))
+```
+## Data visualization for Descriptive Analysis
+#### Attrition Rate in the Organization
+```{r}
+attrition_split<-table(emp_df$Attrition)
+pie(attrition_split/sum(attrition_split),labels = c(paste(round(attrition_split[1]*100/1470,2),"% No"),paste(round(attrition_split[2]*100/1470,2),"% Yes")),col=c("green","red"))
+```
+#### Department wise Attrition
+```{r}
+dp_attrition<-table(select(emp_df,Attrition,Department))
+barplot(dp_attrition,col=c("green","red"),names.arg = c("HR","R&D","Sales"),ylim =c(0,1000))
+```
+#### Attrition Rates in Department
+```{r}
+barplot(dp_attrition[2,]*100/(dp_attrition[2,]+dp_attrition[1,]),col=rainbow(3),main="Department Wise Employee Attrition Rate",xlab="Department",ylab="Attrition Percentage")
+```
+#### Attrition Rates based on the Marital Status of the Employees.
+```{r}
+ms_attrition<-table(select(emp_df,Attrition,MaritalStatus))
+barplot(ms_attrition[2,]*100/(ms_attrition[2,]+ms_attrition[1,]),col=rainbow(3),main="Marital Status based Employee Attrition Rate",xlab="Marital Status",ylab="Attrition Percentage")
+```
+#### Exploring Attrition based on Age of Employees
+```{r}
+hist(emp_df$Age,xlab="Age",main="Employee Age Distribution")
+```
+```{r}
+skewness(emp_df$Age)
+```
+The employee age follows a slightly left skewed distribution.
+We can divide the employees in three categories based on their age.
+1. [18,30] - young
+2. [31,50] - middle
+3. [51,60] - old
+This will help us to better understand and visualize the age based attrition.
+```{r}
+age_dist<-factor(cut(emp_df$Age,breaks=c(18,30,48,60),include.lowest = TRUE),labels = c("Young","Middle","Old"))
+age_attrition<-table(emp_df$Attrition,age_dist)
+barplot(age_attrition[2,]*100/(age_attrition[2,]+age_attrition[1,]),col=rainbow(3),main="Age group based Employee Attrition Rate",xlab="Age Group",ylab="Attrition Percentage")
+```
+
+This doesn't necessarily support that for a given position employee in the young age category has high chance of attrition.
+
+#### Effect of Work Life Balance on Attrition
+```{r}
+wlb_attrition<-table(select(emp_df,Attrition,WorkLifeBalance))
+barplot(wlb_attrition,col=c("green","red"),legend.text = c("No","Yes"),main="Work Life Balance vs Attrition",xlab="Work Life Balance",ylab="Employee Count",ylim=c(0,1000))
+```
+```{r}
+barplot(wlb_attrition[2,]*100/(wlb_attrition[2,]+wlb_attrition[1,]),col=rainbow(4),main="Work Life Balance based Attrition Rate",xlab="Work Life Balance",ylab="Attrition Percentage")
+```
+
+#### Effect of Job Involvement on Attrition
+```{r}
+ji_attrition<-table(select(emp_df,Attrition,JobInvolvement))
+barplot(ji_attrition,col=c("green","red"),legend.text = c("No","Yes"),main="Job Involvement vs Attrition",xlab="Job Involvement",ylab="Employee Count",ylim=c(0,1000))
+```
+```{r}
+barplot(ji_attrition[2,]*100/(ji_attrition[2,]+ji_attrition[1,]),col=rainbow(4),main="Job Involvement based Attrition Rate",xlab="Job Involvement",ylab="Attrition Percentage")
+```
+#### Effect of Distance from Home on Attrition.
+The frequency distribution of Distance from home
+```{r}
+hist(emp_df$DistanceFromHome,xlab="Distance From Home",main="Frequency Distribution Employees based on distance from home")
+```
+The Distance from Home variable is not following a normal distribution, because naturally people would want to avoid more travel time.
+We Categorize the employee based on the distance from home.
+1. [0,5] - Near
+2. [6,15] - Moderately Near
+3. [16,30] - Far
+```{r}
+dfh_dist<-factor(cut(emp_df$DistanceFromHome,breaks=c(0,5,15,30),include.lowest = TRUE),labels=c("Near","Moderately Near","Far"))
+dfh_attrition<-table(emp_df$Attrition,dfh_dist)
+barplot(dfh_attrition[2,]*100/(dfh_attrition[2,]+dfh_attrition[1,]),col=rainbow(3),main="Distance group based Employee Attrition Rate",xlab="Distance Group",ylab="Attrition Percentage")
+```
+
+#### Effect of Business Travel on Attrition
+```{r}
+bs_attrition<-table(select(emp_df,Attrition,BusinessTravel))
+barplot(bs_attrition,col=c("green","red"),legend.text = c("No","Yes"),main="Business Travel vs Attrition",xlab="Business Travel",ylab="Employee Count",ylim=c(0,1200))
+```
+```{r}
+barplot(bs_attrition[2,]*100/(bs_attrition[2,]+bs_attrition[1,]),col=rainbow(3),main="Business Travel based Attrition Rate",xlab="Business Travel",ylab="Attrition Percentage",ylim=c(0,30))
+```
+
+```{r}
+library(ggplot2)
+s<-data.frame(aggregate(emp_df$MonthlyIncome,by=list(Department=emp_df$Department,Job_level=emp_df$JobLevel),FUN=mean))
+names(s)<-c("Department","Job_Level","Avg_Income")
+ggplot(s,aes(fill=Department,x=Job_Level,y=Avg_Income))+geom_bar(position="dodge",stat = "identity")+theme_light()+xlab("Job Level")+ylab("Average Income")+ggtitle("Average Income vs Job Level")
+```
+```{r}
+s<-data.frame(aggregate(emp_df$Attrition,by=list(Department=emp_df$Department,Job_level=emp_df$JobLevel),FUN=mean))
+names(s)<-c("Department","Job_Level","Attrition")
+ggplot(s,aes(fill=Department,x=Job_Level,y=Attrition))+geom_bar(position="dodge",stat = "identity")+theme_light()+xlab("Job Level")+ylab("Attrition")+ggtitle("Attrition vs Job Level")
+```
+
+```{r}
+s<-data.frame(aggregate(emp_df$Attrition,by=list(YICR=emp_df$TrainingTimesLastYear),FUN=mean))
+names(s)<-c("YICR","Attrition")
+ggplot(s,aes(x=YICR,y=Attrition))+geom_bar(stat = "identity",aes(fill=YICR))+theme_minimal()+xlab("Training Time Last Year")+stat_smooth(span=0.7)
+```
+
+### Statistical Analysis of variable.
+For Age
+```{r}
+boxplot(emp_df$Age,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For Distance From Home
+```{r}
+boxplot(emp_df$DistanceFromHome,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+For HourlyRate
+```{r}
+boxplot(emp_df$HourlyRate,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For Monthly Income
+```{r}
+boxplot(emp_df$MonthlyIncome,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+Monthly Income has lot a of outliers, need to either apply transformation or eliminate then.
+Applying Logrithmic Transformation on Monthly Income
+```{r}
+hist(emp_df$MonthlyIncome,xlab="Monthly Income")
+```
+
+Histogram after logithmic transformation
+```{r}
+hist(log(emp_df$MonthlyIncome),xlab="Monthly Income")
+```
+
+```{r}
+emp_df$MonthlyIncome<-log(emp_df$MonthlyIncome)
+boxplot(emp_df$MonthlyIncome,col=c("red"),border=c("blue"),range=1.5,horizontal = TRUE)
+```
+
+For Monthly Rate
+```{r}
+boxplot(emp_df$MonthlyRate,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+``` 
+
+For Number of Companies Worked
+```{r}
+boxplot(emp_df$NumCompaniesWorked,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+Their is only one outlier,i.e 9.
+```{r}
+boxplot.stats(emp_df$NumCompaniesWorked)
+``` 
+
+```{r}
+length(emp_df$NumCompaniesWorked[emp_df$NumCompaniesWorked==9])
+```
+
+There are total of 52 records with Number of Companies Worked as 9. Droping this record may not be a wise choice.
+They need to be transformed.
+```{r}
+boxplot(sqrt(emp_df$NumCompaniesWorked),range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+For Percentage Salary Hike
+```{r}
+boxplot(emp_df$PercentSalaryHike,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For Total Working Years
+```{r}
+boxplot(emp_df$TotalWorkingYears,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+The distribution of number of total working years
+```{r}
+hist(emp_df$TotalWorkingYears,xlab="Total Working Years")
+```
+Applying Square root transformation
+```{r}
+hist(sqrt(emp_df$TotalWorkingYears) ,xlab="Total Working Years")
+```
+Squart Root Tranformation seems to convert the data into a normal distribution which removes the ouliers.
+```{r}
+boxplot(log(emp_df$TotalWorkingYears),range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+Yet to Conclude.
+For Years At Company
+```{r}
+boxplot(emp_df$YearsAtCompany,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+```{r}
+hist(emp_df$YearsAtCompany)
+```
+
+```{r}
+boxplot(log(emp_df$YearsAtCompany),range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For Years in current role
+```{r}
+boxplot(emp_df$YearsInCurrentRole,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+ch
+```{r}
+boxplot(log(emp_df$YearsInCurrentRole),range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+For Years Since Last Promotion
+```{r}
+boxplot(sqrt(emp_df$YearsSinceLastPromotion),range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+```{r}
+hist(emp_df$YearsSinceLastPromotion)
+```
+
+```{r}
+cor(emp_df$YearsSinceLastPromotion,emp_df$Attrition)
+```
+Its better to drop this feature. Since the correlation is very
+insignificant and also log or sqrt transformation doesn't remove the outliers.
+
+For Years With Current Manager
+```{r}
+boxplot(emp_df$YearsWithCurrManager,range=1.5,col=c("red"),border=c("blue"),horizontal = TRUE)
+```
+
+```{r}
+hist(emp_df$HourlyRate)
+```
+
+```{r}
+library(corrplot)
+corrplot(cor(select_if(emp_df,"is.numeric")),method="pie",type="upper",tl.col="black",order="hclust",tl.srt=45,tl.cex=0.5)
+```
+
+# Models
+## Logistic Regression.
+The categorical data must be encoded for the logistic regression model.
+The data tranformation are already performed earlier
+```{r}
+library(caret)
+one_hot_emp_df<-dummyVars("~.",data=emp_df,fullRank=T)
+one_hot_emp_df<-data.frame(predict(one_hot_emp_df,emp_df))
+str(one_hot_emp_df)
+```
+
+Spliting the data
+```{r}
+split<-sample.int(nrow(emp_df),replace = FALSE,size=floor(0.8*nrow(emp_df)))
+train_lr_data<-one_hot_emp_df[split,]
+test_lr_data<-one_hot_emp_df[-split,]
+```
+
+Model Implementation
+```{r}
+lr_model<-glm(Attrition~.,train_lr_data,family = "binomial")
+summary(lr_model)
+```
+There are a lot of features with p-value as high as 0.1.
+Training Accuracy (Threshold=0.5)
+```{r}
+conf_matrix<-table(train_lr_data$Attrition,predict(lr_model,train_lr_data,type="response")>0.5)
+print(conf_matrix)
+print(sum(diag(conf_matrix))/sum(conf_matrix))
+```
+The training accuracy is 0.89%.
+Understanding Result
+```{r}
+library(ROCR)
+roc_predcition<-prediction(predict(lr_model,test_lr_data,type="response"),test_lr_data$Attrition)
+AUC<-performance(roc_predcition,measure="auc")@y.values[[1]]
+print(AUC)
+roc_performace<-performance(roc_predcition,"tpr","fpr")
+plot(roc_performace,colorize=1,print.cutoffs.at=seq(0.1,by=(0.1)))
+```
+Testing the model
+```{r}
+conf_matrix<-table(test_lr_data$Attrition,predict(lr_model,test_lr_data,type="response")>0.6)
+print(conf_matrix)
+print(sum(diag(conf_matrix))/sum(conf_matrix))
+```
+Selected features model
+```{r}
+sf_emp_df<-select(one_hot_emp_df,-c("Department.Research...Development"
+,"Department.Sales"
+,"EducationField.Life.Sciences"
+,"EducationField.Marketing"
+,"EducationField.Medical"
+,"EducationField.Other"
+,"EducationField.Technical.Degree"
+,"JobRole.Human.Resources"
+,"JobRole.Laboratory.Technician"
+,"JobRole.Manager"
+,"JobRole.Manufacturing.Director"
+,"JobRole.Research.Director"
+,"JobRole.Research.Scientist"
+,"JobRole.Sales.Executive"
+,"JobRole.Sales.Representative"))
+sf_train_lr_data<-sf_emp_df[split,]
+sf_test_lr_data<-sf_emp_df[-split,]
+sf_lr_model<-glm(Attrition~.,sf_train_lr_data,family = "binomial")
+summary(sf_lr_model)
+```
+```{r}
+sf_conf_matrix<-table(sf_test_lr_data$Attrition,predict(sf_lr_model,sf_test_lr_data,type="response")>0.5)
+print(sf_conf_matrix)
+print(sum(diag(sf_conf_matrix))/sum(sf_conf_matrix))
+```
+There is no significant difference between the two models. Training time may reduce.
+Feature Importance.
+```{r}
+coeff<-summary(lr_model)$coefficients
+coeff<-data.frame(coeff[,0],coeff[,1])
+coeff<-tibble::rownames_to_column(coeff,"term")
+names(coeff)<-c("Coefficient","Estimate")
+rownames(coeff)<-coeff$Coefficient
+coeff<-subset(coeff,!(row.names(coeff) %in%c("Department.Research...Development"
+,"Department.Sales"
+,"EducationField.Life.Sciences"
+,"EducationField.Marketing"
+,"EducationField.Medical"
+,"EducationField.Other"
+,"EducationField.Technical.Degree"
+,"JobRole.Human.Resources"
+,"JobRole.Laboratory.Technician"
+,"JobRole.Manager"
+,"JobRole.Manufacturing.Director"
+,"JobRole.Research.Director"
+,"JobRole.Research.Scientist"
+,"JobRole.Sales.Executive"
+,"JobRole.Sales.Representative","(Intercept)","MaritalStatus.Single","MaritalStatus.Married","DailyRate"
+,"Gender.Male"
+,"MonthlyRate","HourlyRate","BusinessTravel.Travel_Frequently","BusinessTravel.Travel_Rarely")))
+```
+
+```{r}
+ggplot(coeff,aes(Coefficient,Estimate))+geom_bar(stat="identity")+coord_flip()
+```
+From the Logistic Regression Model, Over Time is identified as the most contributing factor to Employee Attrition. Monthly Income is the most weighted negative factor, so a higher monthly income can reduce employee attrition. Job Involvement, Environment Satisfaction and Work LIfe Balance Seems to a have positive effect on reducing employee attrition.
+
+# Decision Tree.
+```{r}
+split<-sample.int(nrow(emp_df),size=floor(0.8*nrow(emp_df)),replace=FALSE)
+train_dt_data<-emp_df[split,]
+test_dt_data<-emp_df[-split,]
+```
+
+```{r}
+library(party)
+dt_model<-ctree(Attrition~.,train_dt_data)
+plot(dt_model)
+```
+
+Training Accuracy (Threshold=0.5)
+```{r}
+conf_matrix<-table(train_dt_data$Attrition,predict(dt_model,train_dt_data,type="response")>0.5)
+print(conf_matrix)
+print(sum(diag(conf_matrix))/sum(conf_matrix))
+```
+The training accuracy is 0.84%.
+Understanding Result
+```{r}
+library(ROCR)
+roc_predcition<-prediction(predict(dt_model,test_dt_data,type="response"),test_dt_data$Attrition)
+AUC<-performance(roc_predcition,measure="auc")@y.values[[1]]
+print(AUC)
+roc_performace<-performance(roc_predcition,"tpr","fpr")
+plot(roc_performace,colorize=1,print.cutoffs.at=seq(0.1,by=(0.1)))
+```
+
+Testing Accuracy (Threshold=0.5)
+```{r}
+conf_matrix<-table(test_dt_data$Attrition,predict(dt_model,test_dt_data,type="response")>0.5)
+print(conf_matrix)
+print(sum(diag(conf_matrix))/sum(conf_matrix))
+```
+
+```{r}
+summary(dt_model)
+```
+

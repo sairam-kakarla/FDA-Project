@@ -33,7 +33,7 @@ Detail statistical summary of each variable
 ```{r}
 summary(emp_details)
 ```
-The number of attritions are 237 out of 1233 so the majority class prediction would give us an accuracy of
+The number of attritions are 237 out of 1470 so the majority class prediction would give us an accuracy of
 ```{r}
 1233/1470
 ```
@@ -68,7 +68,7 @@ for (i in names(emp_details)) {
   }
 }
 ```
-The above three columns show no variance. They donot contribute to either analytics or predictions for the choosen models.
+The above three columns show no variance. They don't contribute to either analytics or predictions for the choosen models.
 ```{r}
 emp_details<-select(emp_details,-c("EmployeeCount","Over18","StandardHours"))
 names(emp_details)
